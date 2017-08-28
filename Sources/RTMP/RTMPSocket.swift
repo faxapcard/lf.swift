@@ -8,6 +8,7 @@ protocol RTMPSocketCompatible: class {
     var chunkSizeS:Int { get set }
     var totalBytesIn:Int64 { get }
     var totalBytesOut:Int64 { get }
+    var totalBytesDropped:Int64 { get }
     var queueBytesOut:Int64 { get }
     var inputBuffer:Data { get set }
     var securityLevel:StreamSocketSecurityLevel { get set }
@@ -54,6 +55,7 @@ final class RTMPSocket: NetSocket, RTMPSocketCompatible {
             delegate?.didSetTotalBytesIn(totalBytesIn)
         }
     }
+    fileprivate(set) var totalBytesDropped:Int64 = 0
 
     override var connected:Bool {
         didSet {

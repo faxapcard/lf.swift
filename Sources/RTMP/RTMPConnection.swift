@@ -177,6 +177,10 @@ open class RTMPConnection: EventDispatcher {
     open var totalBytesOut:Int64 {
         return socket.totalBytesOut
     }
+    /// The statistics of total dropped bytes.
+    open var totalBytesDropped:Int64 {
+        return socket.totalBytesDropped
+    }
     /// The statistics of total RTMPStream counts.
     open var totalStreamsCount:Int {
         return streams.count
