@@ -2,8 +2,11 @@ import CoreImage
 import Foundation
 import AVFoundation
 
+public typealias CIContextFactory = () -> CIContext
+
 final class VideoIOComponent: IOComponent {
     let lockQueue:DispatchQueue = DispatchQueue(label: "com.haishinkit.HaishinKit.VideoIOComponent.lock")
+    var context:CIContext?
     var drawable:NetStreamDrawable?
     var formatDescription:CMVideoFormatDescription? {
         didSet {
@@ -17,7 +20,9 @@ final class VideoIOComponent: IOComponent {
         queue.delegate = self
         return queue
     }()
+
     var effects:[VisualEffect] = []
+    var contextFactory:CIContextFactory?
 
 #if os(iOS) || os(macOS)
     var fps:Float64 = AVMixer.defaultFPS {
@@ -87,7 +92,7 @@ final class VideoIOComponent: IOComponent {
             let focusMode:AVCaptureFocusMode = continuousAutofocus ? .continuousAutoFocus : .autoFocus
             guard let device:AVCaptureDevice = (input as? AVCaptureDeviceInput)?.device,
                 device.isFocusModeSupported(focusMode) else {
-                logger.warning("focusMode(\(focusMode.rawValue)) is not supported")
+                logger.warn("focusMode(\(focusMode.rawValue)) is not supported")
                 return
             }
             do {
@@ -147,7 +152,7 @@ final class VideoIOComponent: IOComponent {
             let exposureMode:AVCaptureExposureMode = continuousExposure ? .continuousAutoExposure : .autoExpose
             guard let device:AVCaptureDevice = (input as? AVCaptureDeviceInput)?.device,
                 device.isExposureModeSupported(exposureMode) else {
-                logger.warning("exposureMode(\(exposureMode.rawValue)) is not supported")
+                logger.warn("exposureMode(\(exposureMode.rawValue)) is not supported")
                 return
             }
             do {
@@ -266,7 +271,7 @@ final class VideoIOComponent: IOComponent {
 
     func setTorchMode(_ torchMode:AVCaptureTorchMode) {
         guard let device:AVCaptureDevice = (input as? AVCaptureDeviceInput)?.device, device.isTorchModeSupported(torchMode) else {
-            logger.warning("torchMode(\(torchMode)) is not supported")
+            logger.warn("torchMode(\(torchMode)) is not supported")
             return
         }
         do {
@@ -330,12 +335,12 @@ extension VideoIOComponent: AVCaptureVideoDataOutputSampleBufferDelegate {
         CVPixelBufferLockBaseAddress(buffer, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
         let image:CIImage = effect(buffer)
-        if (!effects.isEmpty) {
+        if !effects.isEmpty {
             #if os(macOS)
             // green edge hack for OSX
             buffer = CVPixelBuffer.create(image)!
             #endif
-            drawable?.render(image: image, to: buffer)
+            context?.render(image, to: buffer)
         }
         encoder.encodeImageBuffer(
             buffer,

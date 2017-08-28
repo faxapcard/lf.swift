@@ -1,11 +1,11 @@
 import Foundation
 import XCTest
 
-@testable import lf
+@testable import HaishinKit
 
 final class MD5Tests: XCTestCase {
 
-    func hex(_ data:[UInt8]) -> String {
+    func hex(_ data:Data) -> String {
         var hash:String = ""
         for i in 0..<data.count {
             hash +=  String(format: "%02x", data[i])

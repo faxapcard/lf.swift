@@ -1,7 +1,7 @@
 import Foundation
 import XCTest
 
-@testable import lf
+@testable import HaishinKit
 
 final class CRC32Tests: XCTestCase {
     static let tableOfMpeg2:[UInt32] = [
@@ -73,6 +73,6 @@ final class CRC32Tests: XCTestCase {
 
     func testMPEG2() {
         XCTAssertEqual(CRC32.MPEG2.table, CRC32Tests.tableOfMpeg2)
-        XCTAssertEqual(716244146, CRC32.MPEG2.calculate([0, 176, 13, 0, 1, 193, 0, 0, 0, 1, 240, 0]))
+        XCTAssertEqual(716244146, CRC32.MPEG2.calculate(Data([0, 176, 13, 0, 1, 193, 0, 0, 0, 1, 240, 0])))
     }
 }

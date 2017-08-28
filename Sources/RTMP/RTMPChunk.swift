@@ -30,7 +30,7 @@ enum RTMPChunkType: UInt8 {
         if (streamId <= 319) {
             return Data([rawValue << 6 | 0b0000000, UInt8(streamId - 64)])
         }
-        return Data([rawValue << 6 | 0b00111111] + (streamId - 64).bigEndian.bytes)
+        return Data([rawValue << 6 | 0b00111111] + (streamId - 64).bigEndian.data)
     }
 }
 
@@ -248,7 +248,7 @@ final class RTMPChunk {
             self.message?.length = message.length
             self.message?.payload = Data(try buffer.readBytes(message.length))
         } catch {
-            logger.warning("\(buffer)")
+            logger.warn("\(buffer)")
         }
 
         return headerSize + message.length

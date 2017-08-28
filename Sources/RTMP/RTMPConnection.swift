@@ -49,7 +49,7 @@ open class RTMPConnection: EventDispatcher {
         case connectClosed        = "NetConnection.Connect.Closed"
         case connectFailed        = "NetConnection.Connect.Failed"
         case connectIdleTimeOut   = "NetConnection.Connect.IdleTimeOut"
-        case conenctInvalidApp    = "NetConnection.Connect.InvalidApp"
+        case connectInvalidApp    = "NetConnection.Connect.InvalidApp"
         case connectNetworkChange = "NetConnection.Connect.NetworkChange"
         case connectRejected      = "NetConnection.Connect.Rejected"
         case connectSuccess       = "NetConnection.Connect.Success"
@@ -70,7 +70,7 @@ open class RTMPConnection: EventDispatcher {
                 return "error"
             case .connectIdleTimeOut:
                 return "status"
-            case .conenctInvalidApp:
+            case .connectInvalidApp:
                 return "error"
             case .connectNetworkChange:
                 return "status"
@@ -305,12 +305,12 @@ open class RTMPConnection: EventDispatcher {
 
     func createStream(_ stream: RTMPStream) {
         let responder:Responder = Responder(result: { (data) -> Void in
-            let id:Any? = data[0]
-            if let id:Double = id as? Double {
-                stream.id = UInt32(id)
-                self.streams[stream.id] = stream
-                stream.readyState = .open
+            guard let id:Double = data[0] as? Double else {
+                return
             }
+            stream.id = UInt32(id)
+            self.streams[stream.id] = stream
+            stream.readyState = .open
         })
         call("createStream", responder: responder)
     }
@@ -362,6 +362,9 @@ open class RTMPConnection: EventDispatcher {
                 break
             }
         case Code.connectClosed.rawValue:
+            if let description:String = data["description"] as? String {
+                logger.warn(description)
+            }
             close(isDisconnected: true)
         default:
             break
@@ -489,8 +492,8 @@ extension RTMPConnection: RTMPSocketDelegate {
         }
 
         if let message:RTMPMessage = chunk.message, chunk.ready {
-            if (logger.isEnabledFor(level: .verbose)) {
-                logger.verbose(chunk.description)
+            if (logger.isEnabledFor(level: .trace)) {
+                logger.trace(chunk.description)
             }
             switch chunk.type {
             case .zero:

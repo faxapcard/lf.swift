@@ -1,8 +1,5 @@
 import Foundation
 import AVFoundation
-#if os(iOS)
-import Photos
-#endif
 
 public protocol AVMixerRecorderDelegate: class {
     var moviesDirectory:URL { get }
@@ -159,7 +156,6 @@ open class DefaultAVMixerRecorderDelegate: NSObject {
     fileprivate var clockReference:String = AVMediaTypeVideo
 
     #if os(iOS)
-    open var shouldSaveToPhotoLibrary:Bool = true
     open lazy var moviesDirectory:URL = {
         return URL(fileURLWithPath: NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0])
     }()
@@ -251,20 +247,6 @@ extension DefaultAVMixerRecorderDelegate: AVMixerRecorderDelegate {
     }
 
     open func didFinishWriting(_ recorder:AVMixerRecorder) {
-    #if os(iOS)
-        guard let writer:AVAssetWriter = recorder.writer, shouldSaveToPhotoLibrary else {
-            return
-        }
-        PHPhotoLibrary.shared().performChanges({() -> Void in
-            PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: writer.outputURL)
-        }, completionHandler: { (isSuccess, error) -> Void in
-            do {
-                try FileManager.default.removeItem(at: writer.outputURL)
-            } catch let error as NSError {
-                logger.error("\(error)")
-            }
-        })
-    #endif
     }
 
     open func didStartRunning(_ recorder: AVMixerRecorder) {
@@ -290,7 +272,7 @@ extension DefaultAVMixerRecorderDelegate: AVMixerRecorderDelegate {
             logger.info("\(url)")
             return try AVAssetWriter(outputURL: url, fileType: AVFileTypeMPEG4)
         } catch {
-            logger.warning("create an AVAssetWriter")
+            logger.warn("create an AVAssetWriter")
         }
         return nil
     }

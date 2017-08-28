@@ -60,7 +60,7 @@ final class RTMPSocket: NetSocket, RTMPSocketCompatible {
     override var connected:Bool {
         didSet {
             if (connected) {
-                doOutput(bytes: handshake.c0c1packet)
+                doOutput(data: handshake.c0c1packet)
                 readyState = .versionSent
                 return
             }
@@ -82,14 +82,14 @@ final class RTMPSocket: NetSocket, RTMPSocketCompatible {
             doOutput(data: chunks[i])
         }
         doOutput(data: chunks.last!, locked: locked)
-        if (logger.isEnabledFor(level: .verbose)) {
-            logger.verbose(chunk)
+        if (logger.isEnabledFor(level: .trace)) {
+            logger.trace(chunk.description)
         }
         return chunk.message!.length
     }
 
     func connect(withName:String, port:Int) {
-        networkQueue.async {
+        inputQueue.async {
             Stream.getStreamsToHost(
                 withName: withName,
                 port: port,
@@ -106,7 +106,7 @@ final class RTMPSocket: NetSocket, RTMPSocketCompatible {
             if (inputBuffer.count < RTMPHandshake.sigSize + 1) {
                 break
             }
-            doOutput(bytes: handshake.c2packet(inputBuffer.bytes))
+            doOutput(data: handshake.c2packet(inputBuffer))
             inputBuffer.removeSubrange(0...RTMPHandshake.sigSize)
             readyState = .ackSent
             if (RTMPHandshake.sigSize <= inputBuffer.count) {
@@ -151,6 +151,6 @@ final class RTMPSocket: NetSocket, RTMPSocketCompatible {
     override func didTimeout() {
         deinitConnection(isDisconnected: false)
         delegate?.dispatch(Event.IO_ERROR, bubbles: false, data: nil)
-        logger.warning("connection timedout")
+        logger.warn("connection timedout")
     }
 }

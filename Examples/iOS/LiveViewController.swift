@@ -1,9 +1,25 @@
-import lf
+import HaishinKit
 import UIKit
-import XCGLogger
 import AVFoundation
+import Photos
+import VideoToolbox
 
 let sampleRate:Double = 44_100
+
+class ExampleRecorderDelegate: DefaultAVMixerRecorderDelegate {
+    override func didFinishWriting(_ recorder: AVMixerRecorder) {
+        guard let writer:AVAssetWriter = recorder.writer else { return }
+        PHPhotoLibrary.shared().performChanges({() -> Void in
+            PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: writer.outputURL)
+        }, completionHandler: { (isSuccess, error) -> Void in
+            do {
+                try FileManager.default.removeItem(at: writer.outputURL)
+            } catch let error {
+                print(error)
+            }
+        })
+    }
+}
 
 final class LiveViewController: UIViewController {
     var rtmpConnection:RTMPConnection = RTMPConnection()
@@ -36,12 +52,13 @@ final class LiveViewController: UIViewController {
             "continuousExposure": true,
         ]
         rtmpStream.videoSettings = [
-            "width": 1280,
-            "height": 720,
+            "width": 720,
+            "height": 1280,
         ]
         rtmpStream.audioSettings = [
             "sampleRate": sampleRate
         ]
+        rtmpStream.mixer.recorder.delegate = ExampleRecorderDelegate()
 
         videoBitrateSlider?.value = Float(RTMPStream.defaultVideoBitrate) / 1024
         audioBitrateSlider?.value = Float(RTMPStream.defaultAudioBitrate) / 1024
@@ -51,10 +68,10 @@ final class LiveViewController: UIViewController {
         logger.info("viewWillAppear")
         super.viewWillAppear(animated)
         rtmpStream.attachAudio(AVCaptureDevice.defaultDevice(withMediaType: AVMediaTypeAudio)) { error in
-            logger.warning(error)
+            logger.warn(error.description)
         }
         rtmpStream.attachCamera(DeviceUtil.device(withPosition: currentPosition)) { error in
-            logger.warning(error)
+            logger.warn(error.description)
         }
         rtmpStream.addObserver(self, forKeyPath: "currentFPS", options: NSKeyValueObservingOptions.new, context: nil)
         lfView?.attachStream(rtmpStream)
@@ -72,7 +89,7 @@ final class LiveViewController: UIViewController {
         logger.info("rotateCamera")
         let position:AVCaptureDevicePosition = currentPosition == .back ? .front : .back
         rtmpStream.attachCamera(DeviceUtil.device(withPosition: position)) { error in
-            logger.warning(error)
+            logger.warn(error.description)
         }
         currentPosition = position
     }
@@ -91,7 +108,7 @@ final class LiveViewController: UIViewController {
             rtmpStream.videoSettings["bitrate"] = slider.value * 1024
         }
         if (slider == zoomSlider) {
-            rtmpStream.ramp(toVideoZoomFactor: CGFloat(slider.value), withRate: 5.0)
+            rtmpStream.setZoomFactor(CGFloat(slider.value), ramping: true, withRate: 5.0)
         }
     }
 

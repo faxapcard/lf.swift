@@ -260,7 +260,7 @@ final class MP4SampleSizeBox: MP4Box {
 
 // MARK: -
 final class MP4ElementaryStreamDescriptorBox: MP4ContainerBox {
-    var audioDecorderSpecificConfig:[UInt8] = []
+    var audioDecorderSpecificConfig:Data = Data()
 
     var tag:UInt8 = 0
     var tagSize:UInt8 = 0
@@ -681,7 +681,7 @@ final class MP4TrakReader {
             }
             timerDriver.startRunning()
         } catch {
-            logger.warning("file open error :\(reader.url)")
+            logger.warn("file open error :\(reader.url)")
         }
     }
 

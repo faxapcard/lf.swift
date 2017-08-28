@@ -10,7 +10,6 @@ protocol NetStreamDrawable: class {
 
     func draw(image:CIImage)
     func attachStream(_ stream:NetStream?)
-    func render(image: CIImage, to toCVPixelBuffer: CVPixelBuffer)
 }
 
 // MARK: -
@@ -24,6 +23,14 @@ open class NetStream: NSObject {
     }
 
     open var metadata:[String: Any?] = [:]
+    open var contextFactory:CIContextFactory? {
+        get {
+            return mixer.videoIO.contextFactory
+        }
+        set {
+            mixer.videoIO.contextFactory = contextFactory
+        }
+    }
 
 #if os(iOS) || os(macOS)
     open var torch:Bool {

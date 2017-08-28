@@ -14,7 +14,6 @@ open class GLLFView: GLKView {
     var position:AVCaptureDevicePosition = .back
     var orientation:AVCaptureVideoOrientation = .portrait
 
-    fileprivate var ciContext:CIContext?
     fileprivate var displayImage:CIImage?
     fileprivate weak var currentStream:NetStream? {
         didSet {
@@ -36,29 +35,15 @@ open class GLLFView: GLKView {
     }
 
     open override func awakeFromNib() {
+        delegate = self
         enableSetNeedsDisplay = true
         backgroundColor = GLLFView.defaultBackgroundColor
         layer.backgroundColor = GLLFView.defaultBackgroundColor.cgColor
-        self.ciContext = CIContext(eaglContext: context, options: GLLFView.defaultOptions)
-    }
-
-    open override func draw(_ rect: CGRect) {
-        glClear(GLbitfield(GL_COLOR_BUFFER_BIT))
-        guard let displayImage:CIImage = displayImage else {
-            return
-        }
-        var inRect:CGRect = CGRect(x: 0, y: 0, width: CGFloat(drawableWidth), height: CGFloat(drawableHeight))
-        var fromRect:CGRect = displayImage.extent
-        VideoGravityUtil.calclute(videoGravity, inRect: &inRect, fromRect: &fromRect)
-        if (position == .front) {
-            ciContext?.draw(displayImage.applyingOrientation(2), in: inRect, from: fromRect)
-        } else {
-            ciContext?.draw(displayImage, in: inRect, from: fromRect)
-        }
     }
 
     open func attachStream(_ stream:NetStream?) {
         if let stream:NetStream = stream {
+            stream.mixer.videoIO.context = CIContext(eaglContext: context, options: GLLFView.defaultOptions)
             stream.lockQueue.async {
                 self.position = stream.mixer.videoIO.position
                 stream.mixer.videoIO.drawable = self
@@ -69,12 +54,25 @@ open class GLLFView: GLKView {
     }
 }
 
+extension GLLFView: GLKViewDelegate {
+    public func glkView(_ view: GLKView, drawIn rect: CGRect) {
+        glClear(GLbitfield(GL_COLOR_BUFFER_BIT))
+        guard let displayImage:CIImage = displayImage else {
+            return
+        }
+        var inRect:CGRect = CGRect(x: 0, y: 0, width: CGFloat(drawableWidth), height: CGFloat(drawableHeight))
+        var fromRect:CGRect = displayImage.extent
+        VideoGravityUtil.calclute(videoGravity, inRect: &inRect, fromRect: &fromRect)
+        if (position == .front) {
+            currentStream?.mixer.videoIO.context?.draw(displayImage.applyingOrientation(2), in: inRect, from: fromRect)
+        } else {
+            currentStream?.mixer.videoIO.context?.draw(displayImage, in: inRect, from: fromRect)
+        }
+    }
+}
+
 extension GLLFView: NetStreamDrawable {
     // MARK: NetStreamDrawable
-    func render(image: CIImage, to toCVPixelBuffer: CVPixelBuffer) {
-        ciContext?.render(image, to: toCVPixelBuffer)
-    }
-
     func draw(image:CIImage) {
         DispatchQueue.main.async {
             self.displayImage = image

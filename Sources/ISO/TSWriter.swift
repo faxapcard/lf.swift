@@ -87,17 +87,18 @@ class TSWriter {
             packets[0].adaptationField?.randomAccessIndicator = !sampleBuffer.dependsOnOthers
         }
 
-        var bytes:[UInt8] = []
+        var bytes:Data = Data()
         for var packet in packets {
             packet.continuityCounter = continuityCounters[PID]!
             continuityCounters[PID] = (continuityCounters[PID]! + 1) & 0x0f
-            bytes += packet.bytes
+            bytes.append(packet.data)
         }
+
         nstry({
-            self.currentFileHandle?.write(Data(bytes: UnsafePointer<UInt8>(bytes), count: bytes.count))
+            self.currentFileHandle?.write(bytes)
         }){ exception in
-            self.currentFileHandle?.write(Data(bytes: UnsafePointer<UInt8>(bytes), count: bytes.count))
-            logger.warning("\(exception)")
+            self.currentFileHandle?.write(bytes)
+            logger.warn("\(exception)")
         }
     }
 
@@ -134,7 +135,7 @@ class TSWriter {
             do {
                 try fileManager.createDirectory(atPath: temp, withIntermediateDirectories: false, attributes: nil)
             } catch let error as NSError {
-                logger.warning("\(error)")
+                logger.warn("\(error)")
             }
         }
 
@@ -150,7 +151,7 @@ class TSWriter {
         if (TSWriter.defaultSegmentMaxCount <= files.count) {
             let info:M3UMediaInfo = files.removeFirst()
             do { try fileManager.removeItem(at: info.url as URL) }
-            catch let e as NSError { logger.warning("\(e)") }
+            catch let e as NSError { logger.warn("\(e)") }
         }
         currentFileURL = url
         for (pid, _) in continuityCounters {
@@ -160,25 +161,25 @@ class TSWriter {
         nstry({
             self.currentFileHandle?.synchronizeFile()
         }) { exeption in
-            logger.warning("\(exeption)")
+            logger.warn("\(exeption)")
         }
         
         currentFileHandle?.closeFile()
         currentFileHandle = try? FileHandle(forWritingTo: url)
 
         PMT.PCRPID = PCRPID
-        var bytes:[UInt8] = []
+        var bytes:Data = Data()
         var packets:[TSPacket] = []
-        packets += PAT.arrayOfPackets(TSWriter.defaultPATPID)
-        packets += PMT.arrayOfPackets(TSWriter.defaultPMTPID)
+        packets.append(contentsOf: PAT.arrayOfPackets(TSWriter.defaultPATPID))
+        packets.append(contentsOf: PMT.arrayOfPackets(TSWriter.defaultPMTPID))
         for packet in packets {
-            bytes += packet.bytes
+            bytes.append(packet.data)
         }
 
         nstry({
-            self.currentFileHandle?.write(Data(bytes: bytes, count: bytes.count))
+            self.currentFileHandle?.write(bytes)
         }){ exception in
-            logger.warning("\(exception)")
+            logger.warn("\(exception)")
         }
         rotatedTimestamp = timestamp
 
@@ -189,7 +190,7 @@ class TSWriter {
         let fileManager:FileManager = FileManager.default
         for info in files {
             do { try fileManager.removeItem(at: info.url as URL) }
-            catch let e as NSError { logger.warning("\(e)") }
+            catch let e as NSError { logger.warn("\(e)") }
         }
         files.removeAll()
     }

@@ -1,8 +1,8 @@
 # HaishinKit (formerly lf)
-[![Platform](https://img.shields.io/cocoapods/p/lf.svg?style=flat)](http://cocoapods.org/pods/lf)
+[![Platform](https://img.shields.io/cocoapods/p/HaishinKit.svg?style=flat)](http://cocoapods.org/pods/HaishinKit)
 ![Language](https://img.shields.io/badge/language-Swift%203.1-orange.svg)
-[![CocoaPods](https://img.shields.io/cocoapods/v/lf.svg?style=flat)](http://cocoapods.org/pods/lf)
-[![GitHub license](https://img.shields.io/badge/license-New%20BSD-blue.svg)](https://raw.githubusercontent.com/shogo4405/lf.swift/master/LICENSE.txt)
+[![CocoaPods](https://img.shields.io/cocoapods/v/HaishinKit.svg?style=flat)](http://cocoapods.org/pods/HaishinKit)
+[![GitHub license](https://img.shields.io/badge/license-New%20BSD-blue.svg)](https://raw.githubusercontent.com/shogo4405/HaishinKit.swift/master/LICENSE.md)
 
 * Camera and Microphone streaming library via RTMP, HLS for iOS, macOS, tvOS.
 * Issuesの言語は、英語か、日本語でお願いします！
@@ -50,7 +50,6 @@
 iOS10.0+
 * NSMicrophoneUsageDescription
 * NSCameraUsageDescription
-* NSPhotoLibraryUsageDescription
 
 ## Installation
 ### CocoaPods
@@ -59,7 +58,7 @@ source 'https://github.com/CocoaPods/Specs.git'
 use_frameworks!
 
 def import_pods
-    pod 'lf', '~> 0.7.0'
+    pod 'HaishinKit', '~> 0.7.4'
 end
 
 target 'Your Target'  do
@@ -69,7 +68,7 @@ end
 ```
 ### Carthage
 ```
-github "shogo4405/lf.swift" ~> 0.7.0
+github "shogo4405/HaishinKit.swift" ~> 0.7.4
 ```
 
 ## License
@@ -78,9 +77,22 @@ New BSD
 ## Donation
 Bitcoin
 ```txt
-1HtWpaYkRGZMnq253QsJP6xSKZRPoJ8Hrs
+1CWA9muX36QKBdJiRQJGpu2HvchfEpJbWr
 ```
 
+## Prerequisites
+Make sure you setup and activate your AVAudioSession.
+```swift
+import AVFoundation
+
+do {
+   try AVAudioSession.sharedInstance().setPreferredSampleRate(44_100)
+   try AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayAndRecord)
+   try AVAudioSession.sharedInstance().setMode(AVAudioSessionModeDefault)
+   try AVAudioSession.sharedInstance().setActive(true)
+   } catch {
+}
+```
 ## RTMP Usage
 Real Time Messaging Protocol (RTMP).
 ```swift
@@ -199,24 +211,6 @@ httpService.addHTTPStream(httpStream)
 // add ViewController#view
 view.addSubview(lfView)
 ```
-
-## Prerequisites
-Make sure you setup and activate your AVAudioSession.
-
-```
-import AVFoundation
-
-...
-
-do {
-   try AVAudioSession.sharedInstance().setPreferredSampleRate(44_100)
-   try AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayAndRecord)
-   try AVAudioSession.sharedInstance().setMode(AVAudioSessionModeDefault)
-   try AVAudioSession.sharedInstance().setActive(true)
-   } catch {
-}
-```
-
 
 ## Reference
 * Adobe’s Real Time Messaging Protocol
