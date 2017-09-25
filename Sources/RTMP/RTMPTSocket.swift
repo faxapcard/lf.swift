@@ -67,7 +67,7 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
     private var lastResponse:Date = Date()
     private var isRetryingRequest:Bool = true
 
-    private let maxChunks = 20
+    private let maxChunks = 50
 
     private var requestTask:URLSessionUploadTask?
     private var requestTaskTimer:Timer?
@@ -325,7 +325,7 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
         requestTask!.resume()
 
         if (index > 1) {
-            requestTaskTimer = setTimeout(delay: 2, block: {
+            requestTaskTimer = setTimeout(delay: 3, block: {
                 OSAtomicAdd64(Int64(data.count), &self.totalBytesDropped)
                 self.requestTask!.cancel()
                 completionHandler(nil, nil, nil)
