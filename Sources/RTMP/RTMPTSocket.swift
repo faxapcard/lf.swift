@@ -330,7 +330,7 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
             }
             
             if let _:Error = error {
-                OSAtomicAdd64(Int64(data.count), &self.totalBytesOut)
+                OSAtomicAdd64(Int64(data.count), &self.queueBytesOut)
                 return self.doRequest(pathComponent, data, completionHandler)
             }
             if (pathComponent == "/send/" + (self.connectionID ?? "") + "/1") {
