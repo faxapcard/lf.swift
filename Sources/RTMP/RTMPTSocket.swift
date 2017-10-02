@@ -92,9 +92,6 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
     }
 
     private func addChunk(rtmpChunk:RTMPChunk) {
-        if (rtmpChunk.fragmented) {
-            logger.trace("dropping fragmented chunk \(self.index)")
-        }
         if self.outputRTMPQueue.count == 0 {
             self.outputRTMPQueue.append([])
         }
@@ -346,7 +343,7 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
 
         logger.trace("doRequest \(index) \(data.count)")
         if (index > 1) {
-            requestTaskTimer = setTimeout(delay: 10, block: {
+            requestTaskTimer = setTimeout(delay: 5, block: {
                 logger.trace("dropping rtmpchunk due to timeout \(self.index)")
                 OSAtomicIncrement64(&self.index)
                 OSAtomicAdd64(Int64(data.count), &self.totalBytesDropped)
