@@ -13,6 +13,7 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
         didSet {
             if (connected) {
                 handshake.timestamp = Date().timeIntervalSince1970
+                OSAtomicAdd64(Int64(handshake.c0c1packet.count), &self.queueBytesOut)
                 doOutput(data: handshake.c0c1packet)
                 readyState = .versionSent
                 return
@@ -63,11 +64,11 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
     private var connectionID:String?
     private var isRequesting:Bool = false
     private var outputBuffer:Data = Data()
-    private var outputBufferChunks:[Data] = []
+    private var outputRTMPQueue:[[Data]] = []
     private var lastResponse:Date = Date()
     private var isRetryingRequest:Bool = true
 
-    private let maxChunks = 50
+    private let maxChunks = 30
 
     private var requestTask:URLSessionUploadTask?
     private var requestTaskTimer:Timer?
@@ -90,18 +91,26 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
         timer = Timer(timeInterval: 0.1, target: self, selector: #selector(RTMPTSocket.on(timer:)), userInfo: nil, repeats: true)
     }
 
-    private func addChunk(bytes:[UInt8]) {
-        self.outputBufferChunks.append(Data(bytes))
-        if (self.outputBufferChunks.count > maxChunks) {
-            OSAtomicAdd64(Int64(self.outputBufferChunks.first!.count), &self.totalBytesDropped)
-            OSAtomicAdd64(-Int64(self.outputBufferChunks.first!.count), &self.queueBytesOut)
-            self.outputBufferChunks.removeFirst()
+    private func addChunk(rtmpChunk:RTMPChunk) {
+        if (rtmpChunk.fragmented) {
+            logger.trace("dropping fragmented chunk \(self.index)")
+        }
+        if self.outputRTMPQueue.count == 0 {
+            self.outputRTMPQueue.append([])
+        }
+        if self.outputRTMPQueue.last!.count >= maxChunks {
+            self.outputRTMPQueue.append([])
+        }
+        let chunks:[Data] = rtmpChunk.split(chunkSizeS)
+        for chunk:Data in chunks {
+            OSAtomicAdd64(Int64(chunk.count), &self.queueBytesOut)
+            self.outputRTMPQueue[self.outputRTMPQueue.count - 1].append(chunk)
         }
     }
 
     private func getBuffer() -> Data {
         var result:Data = Data()
-        for chunk in self.outputBufferChunks {
+        for chunk:Data in self.outputRTMPQueue.first ?? [] {
             result += chunk;
         }
         return result
@@ -110,24 +119,21 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
 
     @discardableResult
     func doOutput(chunk:RTMPChunk, locked:UnsafeMutablePointer<UInt32>? = nil) -> Int {
-        var bytes:[UInt8] = []
-        let chunks:[Data] = chunk.split(chunkSizeS)
-        for chunk in chunks {
-            bytes.append(contentsOf: chunk)
+        guard let connectionID:String = connectionID, connected else {
+            return 0
         }
-
         outputQueue.sync {
-            OSAtomicAdd64(Int64(bytes.count), &self.queueBytesOut)
-            addChunk(bytes: bytes)
+            addChunk(rtmpChunk: chunk)
+            logger.trace("doOutput \(index) \(self.outputRTMPQueue.count) \((self.outputRTMPQueue.first ?? []).count)")
             if !self.isRequesting {
-                self.doOutput(data: getBuffer(), isChunk: true)
-                self.outputBufferChunks.removeAll()
+                self.doOutput(data: getBuffer())
+                self.outputRTMPQueue.removeFirst()
             }
         }
         if (locked != nil) {
             OSAtomicAnd32Barrier(0, locked!)
         }
-        return bytes.count
+        return chunk.size
     }
 
     func close(isDisconnected:Bool) {
@@ -166,6 +172,13 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
                 let response:HTTPURLResponse = response as? HTTPURLResponse,
                 let contentType:String = response.allHeaderFields["Content-Type"] as? String,
                 let data:Data = data, contentType == RTMPTSocket.contentType else {
+            return
+        }
+        
+        if response.statusCode != 200 {
+            self.deinitConnection(isDisconnected: false)
+            self.delegate?.dispatch(Event.IO_ERROR, bubbles: false, data: nil)
+            logger.warn("connection failed with status code: \(response.statusCode)")
             return
         }
 
@@ -207,13 +220,13 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
             return
         }
 
-        let buffer:Data = getBuffer()
         self.outputQueue.sync {
+            let buffer:Data = getBuffer()
             if (buffer.isEmpty) {
                 self.isRequesting = false
             } else {
-                self.doOutput(data: buffer, isChunk: true)
-                self.outputBufferChunks.removeAll()
+                self.doOutput(data: buffer)
+                self.outputRTMPQueue.removeFirst()
             }
         }
     }
@@ -288,16 +301,14 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
     }
 
     @discardableResult
-    final private func doOutput(data:Data, isChunk:Bool? = false) -> Int {
+    final private func doOutput(data:Data) -> Int {
         guard let connectionID:String = connectionID, connected else {
             return 0
         }
         let index:Int64 = OSAtomicIncrement64(&self.index)
         doRequest("/send/\(connectionID)/\(index)", c2packet + data, {
             (receivedData:Data?, response:URLResponse?, error:Error?) in
-            if (isChunk ?? false) {
-                OSAtomicAdd64(-Int64(data.count), &self.queueBytesOut)
-            }
+            OSAtomicAdd64(-Int64(data.count), &self.queueBytesOut)
             self.listen(data: receivedData, response: response, error: error)
         })
         c2packet.removeAll()
@@ -305,27 +316,39 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
     }
 
     private var timeSent = Date()
+    private var firstRequestTimeSent:Date?
 
-    private func doRequest(_ pathComponent: String,_ data:Data,_ completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void)) {
+    private func doRequest(_ pathComponent: String,_ data:Data,_ completionHandler: @escaping ((Data?, URLResponse?, Error?) -> Void), timeout: Bool = true) {
+        if (firstRequestTimeSent == nil) {
+            firstRequestTimeSent = Date()
+        }
+
         isRequesting = true
         request = URLRequest(url: baseURL.appendingPathComponent(pathComponent))
         request.httpMethod = "POST"
         requestTask = session.uploadTask(with: request, from: data, completionHandler: {
             (requestData:Data?, response:URLResponse?, error:Error?) in
-            if let error:Error = error {
-            } else {
-                OSAtomicAdd64(Int64(data.count), &self.totalBytesOut)
-            }
             if (self.index > 1) {
                 self.requestTaskTimer!.invalidate()
+            }
+            
+            if let _:Error = error {
+                OSAtomicAdd64(Int64(data.count), &self.totalBytesOut)
+                return self.doRequest(pathComponent, data, completionHandler)
+            }
+            if (pathComponent == "/send/" + (self.connectionID ?? "") + "/1") {
+                logger.trace("handshake: " + String(describing: self.firstRequestTimeSent?.timeIntervalSinceNow));
             }
             completionHandler(requestData, response, error)
         })
         timeSent = Date()
         requestTask!.resume()
 
+        logger.trace("doRequest \(index) \(data.count)")
         if (index > 1) {
-            requestTaskTimer = setTimeout(delay: 3, block: {
+            requestTaskTimer = setTimeout(delay: 10, block: {
+                logger.trace("dropping rtmpchunk due to timeout \(self.index)")
+                OSAtomicIncrement64(&self.index)
                 OSAtomicAdd64(Int64(data.count), &self.totalBytesDropped)
                 self.requestTask!.cancel()
                 completionHandler(nil, nil, nil)
@@ -340,5 +363,6 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
 // MARK: -
 extension RTMPTSocket: URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
+        OSAtomicAdd64(bytesSent, &totalBytesOut)
     }
 }
