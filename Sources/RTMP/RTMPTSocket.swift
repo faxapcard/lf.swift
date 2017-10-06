@@ -123,8 +123,7 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
             addChunk(rtmpChunk: chunk)
             logger.trace("doOutput \(index) \(self.outputRTMPQueue.count) \((self.outputRTMPQueue.first ?? []).count)")
             if !self.isRequesting {
-                self.doOutput(data: getBuffer())
-                self.outputRTMPQueue.removeFirst()
+                self.doNextRequest()
             }
         }
         if (locked != nil) {
@@ -150,6 +149,7 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
     }
 
     private func listen(data:Data?, response:URLResponse?, error:Error?) {
+        logger.trace("listen")
 
         lastResponse = Date()
 
@@ -213,6 +213,7 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
     }
 
     private func doNextRequest() {
+        logger.trace("do next request")
         if (!self.connected) {
             return
         }
@@ -305,6 +306,7 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
         let index:Int64 = OSAtomicIncrement64(&self.index)
         doRequest("/send/\(connectionID)/\(index)", c2packet + data, {
             (receivedData:Data?, response:URLResponse?, error:Error?) in
+            logger.trace("do request done")
             OSAtomicAdd64(-Int64(data.count), &self.queueBytesOut)
             self.listen(data: receivedData, response: response, error: error)
         })
@@ -325,14 +327,24 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
         request.httpMethod = "POST"
         requestTask = session.uploadTask(with: request, from: data, completionHandler: {
             (requestData:Data?, response:URLResponse?, error:Error?) in
+
+            logger.trace("upload task complete ")
             if (self.index > 1) {
                 self.requestTaskTimer!.invalidate()
             }
             
             if let _:Error = error {
-                OSAtomicAdd64(Int64(data.count), &self.queueBytesOut)
-                return self.doRequest(pathComponent, data, completionHandler)
+                if self.isRetryingRequest == false {
+                    logger.trace("upload task error, retrying?")
+                    self.isRetryingRequest = true;
+                    OSAtomicAdd64(Int64(data.count), &self.queueBytesOut)
+                    return self.doRequest(pathComponent, data, completionHandler)
+                } else {
+                    logger.trace("dropping due to error")
+                    OSAtomicAdd64(Int64(data.count), &self.totalBytesDropped)
+                }
             }
+            self.isRetryingRequest = false;
             if (pathComponent == "/send/" + (self.connectionID ?? "") + "/1") {
                 logger.trace("handshake: " + String(describing: self.firstRequestTimeSent?.timeIntervalSinceNow));
             }
@@ -343,7 +355,7 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
 
         logger.trace("doRequest \(index) \(data.count)")
         if (index > 1) {
-            requestTaskTimer = setTimeout(delay: 5, block: {
+            requestTaskTimer = setTimeout(delay: 3, block: {
                 logger.trace("dropping rtmpchunk due to timeout \(self.index)")
                 OSAtomicIncrement64(&self.index)
                 OSAtomicAdd64(Int64(data.count), &self.totalBytesDropped)
