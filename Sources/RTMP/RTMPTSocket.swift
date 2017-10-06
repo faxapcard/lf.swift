@@ -123,7 +123,8 @@ final class RTMPTSocket: NSObject, RTMPSocketCompatible {
             addChunk(rtmpChunk: chunk)
             logger.trace("doOutput \(index) \(self.outputRTMPQueue.count) \((self.outputRTMPQueue.first ?? []).count)")
             if !self.isRequesting {
-                self.doNextRequest()
+                self.doOutput(data: getBuffer())
+                self.outputRTMPQueue.removeFirst()
             }
         }
         if (locked != nil) {
