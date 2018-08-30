@@ -8,7 +8,7 @@ protocol RTMPMuxerDelegate: class {
 }
 
 // MARK: -
-public final class RTMPMuxer {
+final class RTMPMuxer {
     static let aac:UInt8 = FLVAudioCodec.aac.rawValue << 4 | FLVSoundRate.kHz44.rawValue << 2 | FLVSoundSize.snd16bit.rawValue << 1 | FLVSoundType.stereo.rawValue
 
     weak var delegate:RTMPMuxerDelegate? = nil
@@ -25,7 +25,7 @@ public final class RTMPMuxer {
 
 extension RTMPMuxer: AudioEncoderDelegate {
     // MARK: AudioEncoderDelegate
-    public func didSetFormatDescription(audio formatDescription: CMFormatDescription?) {
+    func didSetFormatDescription(audio formatDescription: CMFormatDescription?) {
         guard let formatDescription:CMFormatDescription = formatDescription else {
             return
         }
@@ -34,7 +34,7 @@ extension RTMPMuxer: AudioEncoderDelegate {
         delegate?.sampleOutput(audio: buffer, withTimestamp: 0, muxer: self)
     }
 
-    public func sampleOutput(audio sampleBuffer: CMSampleBuffer) {
+    func sampleOutput(audio sampleBuffer: CMSampleBuffer) {
         let presentationTimeStamp:CMTime = sampleBuffer.presentationTimeStamp
         let delta:Double = (audioTimestamp == kCMTimeZero ? 0 : presentationTimeStamp.seconds - audioTimestamp.seconds) * 1000
         guard let data:Data = sampleBuffer.dataBuffer?.data, 0 <= delta else {
@@ -49,7 +49,7 @@ extension RTMPMuxer: AudioEncoderDelegate {
 
 extension RTMPMuxer: VideoEncoderDelegate {
     // MARK: VideoEncoderDelegate
-    public func didSetFormatDescription(video formatDescription: CMFormatDescription?) {
+    func didSetFormatDescription(video formatDescription: CMFormatDescription?) {
         guard
             let formatDescription:CMFormatDescription = formatDescription,
             let avcC:Data = AVCConfigurationRecord.getData(formatDescription) else {
@@ -60,7 +60,7 @@ extension RTMPMuxer: VideoEncoderDelegate {
         delegate?.sampleOutput(video: buffer, withTimestamp: 0, muxer: self)
     }
 
-    public func sampleOutput(video sampleBuffer: CMSampleBuffer) {
+    func sampleOutput(video sampleBuffer: CMSampleBuffer) {
         guard let data:Data = sampleBuffer.dataBuffer?.data else {
             return
         }

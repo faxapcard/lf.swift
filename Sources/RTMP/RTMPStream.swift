@@ -290,7 +290,7 @@ open class RTMPStream: NetStream {
 
     var audioTimestamp:Double = 0
     var videoTimestamp:Double = 0
-    public let muxer:RTMPMuxer = RTMPMuxer()
+    fileprivate(set) var muxer:RTMPMuxer = RTMPMuxer()
     fileprivate var paused:Bool = false
     fileprivate var sampler:MP4Sampler? = nil
     fileprivate var frameCount:UInt16 = 0
