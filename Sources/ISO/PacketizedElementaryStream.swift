@@ -49,10 +49,10 @@ struct PESOptionalHeader {
 
     mutating func setTimestamp(_ timestamp: CMTime, presentationTimeStamp: CMTime, decodeTimeStamp: CMTime) {
         let base: Double = Double(timestamp.seconds)
-        if presentationTimeStamp != kCMTimeInvalid {
+        if presentationTimeStamp != CMTime.invalid {
             PTSDTSIndicator |= 0x02
         }
-        if decodeTimeStamp != kCMTimeInvalid {
+        if decodeTimeStamp != CMTime.invalid {
             PTSDTSIndicator |= 0x01
         }
         if PTSDTSIndicator & 0x02 == 0x02 {
@@ -178,6 +178,28 @@ struct PacketizedElementaryStream: PESPacketHeader {
     init?(_ payload: Data) {
         self.payload = payload
         if startCode != PacketizedElementaryStream.startCode {
+            return nil
+        }
+    }
+
+    init?(bytes: UnsafeMutablePointer<UInt8>?, count: UInt32, presentationTimeStamp: CMTime, timestamp: CMTime, config: AudioSpecificConfig?) {
+        guard let bytes = bytes, let config = config else {
+            return nil
+        }
+        var data = Data()
+        data.append(contentsOf: config.adts(payload.count))
+        data.append(bytes, count: Int(count))
+        optionalPESHeader = PESOptionalHeader()
+        optionalPESHeader?.dataAlignmentIndicator = true
+        optionalPESHeader?.setTimestamp(
+            timestamp,
+            presentationTimeStamp: presentationTimeStamp,
+            decodeTimeStamp: CMTime.invalid
+        )
+        let length = data.count + optionalPESHeader!.data.count
+        if length < Int(UInt16.max) {
+            packetLength = UInt16(length)
+        } else {
             return nil
         }
     }

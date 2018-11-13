@@ -50,17 +50,22 @@
 ## Requirements
 |-|iOS|OSX|tvOS|XCode|Swift|CocoaPods|Carthage|
 |:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|
-|0.9.0|8.0+|10.11+|10.2+|9.3+|4.1|1.5.0+|0.29.0+|
-|0.8.0|8.0+|10.11+|10.2+|9.0+|4.0+|1.2.0+|0.20.0+|
-|0.7.0|8.0+|10.11+|10.2+|8.3+|3.1|1.2.0+|0.20.0+|
+|0.10.0|8.0+|10.11+|10.2+|10.0+|4.2|1.5.0+|0.29.0+|
+|0.9.0|8.0+|10.11+|10.2+|9.3|4.1|1.5.0+|0.29.0+|
 
 ## Cocoa Keys
-iOS10.0+
+Please contains Info.plist.
+
+iOS 10.0+
+* NSMicrophoneUsageDescription
+* NSCameraUsageDescription
+
+macOS 10.14+
 * NSMicrophoneUsageDescription
 * NSCameraUsageDescription
 
 ## Installation
-*Please set up your project Swift 4.1.*
+*Please set up your project Swift 4.2.*
 
 ### CocoaPods
 ```rb
@@ -68,7 +73,7 @@ source 'https://github.com/CocoaPods/Specs.git'
 use_frameworks!
 
 def import_pods
-    pod 'HaishinKit', '~> 0.9.2'
+    pod 'HaishinKit', '~> 0.10.1'
 end
 
 target 'Your Target'  do
@@ -78,16 +83,19 @@ end
 ```
 ### Carthage
 ```
-github "shogo4405/HaishinKit.swift" ~> 0.9.2
+github "shogo4405/HaishinKit.swift" ~> 0.10.1
 ```
 
 ## License
 BSD-3-Clause
 
 ## Donation
+Paypal
+ - https://www.paypal.me/shogo4405
+
 Bitcoin
 ```txt
-17N3qWCKjwJrWrDuyeHaqWkZYnJqX7igXN
+1LP7Jo4VwAFdEisJSykBAtUyAusZjozSpw
 ```
 
 ## Prerequisites
@@ -97,7 +105,12 @@ import AVFoundation
 let session: AVAudioSession = AVAudioSession.sharedInstance()
 do {
     try session.setPreferredSampleRate(44_100)
-    try session.setCategory(AVAudioSessionCategoryPlayAndRecord, with: .allowBluetooth)
+    // https://stackoverflow.com/questions/51010390/avaudiosession-setcategory-swift-4-2-ios-12-play-sound-on-silent
+    if #available(iOS 10.0, *) {
+        try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth])
+    } else {
+        session.perform(NSSelectorFromString("setCategory:withOptions:error:"), with: AVAudioSession.Category.playAndRecord, with:  [AVAudioSession.CategoryOptions.allowBluetooth])
+    }
     try session.setMode(AVAudioSessionModeDefault)
     try session.setActive(true)
 } catch {
@@ -127,6 +140,7 @@ rtmpStream.publish("streamName")
 // if you want to record a stream.
 // rtmpStream.publish("streamName", type: .localRecord)
 ```
+
 ### Settings
 ```swift
 let sampleRate:Double = 44_100
@@ -136,8 +150,12 @@ let sampleRate:Double = 44_100
 let session: AVAudioSession = AVAudioSession.sharedInstance()
 do {
     try session.setPreferredSampleRate(44_100)
-    try session.setCategory(AVAudioSessionCategoryPlayAndRecord, with: .allowBluetooth)
-    try session.setMode(AVAudioSessionModeDefault)
+    // https://stackoverflow.com/questions/51010390/avaudiosession-setcategory-swift-4-2-ios-12-play-sound-on-silent
+    if #available(iOS 10.0, *) {
+        try session.setCategory(.playAndRecord, mode: .default, options: [.allowBluetooth])
+    } else {
+        session.perform(NSSelectorFromString("setCategory:withOptions:error:"), with: AVAudioSession.Category.playAndRecord, with:  [AVAudioSession.CategoryOptions.allowBluetooth])
+    }
     try session.setActive(true)
 } catch {
 }
@@ -231,8 +249,9 @@ carthage update
 ```
 
 ### Do you support me via Email?
-Yes. Consulting fee is $50/1 incident. I don't recommend.
+Yes. Consulting fee is [$50](https://www.paypal.me/shogo4405/50USD)/1 incident. I don't recommend. 
 Please consider to use Issues.
+
 
 ## Reference
 * Adobe’s Real Time Messaging Protocol
