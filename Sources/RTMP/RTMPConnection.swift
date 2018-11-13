@@ -210,7 +210,7 @@ open class RTMPConnection: EventDispatcher {
         didSet {
             oldValue?.invalidate()
             if let timer: Timer = timer {
-                RunLoop.main.add(timer, forMode: .commonModes)
+                RunLoop.main.add(timer, forMode: RunLoop.Mode.common)
             }
         }
     }
@@ -423,7 +423,7 @@ open class RTMPConnection: EventDispatcher {
             }
             if count == measureInterval - 1 {
                 for (_, stream) in streams {
-                    stream.qosDelegate?.didPublishInsufficientBW(stream, withConnection: self)
+                    stream.delegate?.didPublishInsufficientBW(stream, withConnection: self)
                 }
             }
             previousQueueBytesOut.removeFirst()
