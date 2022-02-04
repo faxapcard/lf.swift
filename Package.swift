@@ -11,5 +11,10 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/shogo4405/Logboard.git", from: "1.0.0"),
+    ],
+    targets: [
+        .target(
+            name: "HaishinKit",
+            dependencies: ["Logboard"])
     ]
 )
