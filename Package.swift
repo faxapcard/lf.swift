@@ -3,7 +3,10 @@ import PackageDescription
 
 let package = Package(
     name: "HaishinKit",
+    platforms: [
+        .macOS(.v10_15),
+    ],
     dependencies: [
-        .Package(url: "https://github.com/shogo4405/Logboard.git", majorVersion: 1)
+        .package(url: "https://github.com/shogo4405/Logboard.git", from: "1.0.0"),
     ]
 )
