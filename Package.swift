@@ -6,6 +6,9 @@ let package = Package(
     platforms: [
         .macOS(.v10_15),
     ],
+    products: [
+        .library(name: "HaishinKit", targets: ["HaishinKit"]),
+    ],
     dependencies: [
         .package(url: "https://github.com/shogo4405/Logboard.git", from: "1.0.0"),
     ]
